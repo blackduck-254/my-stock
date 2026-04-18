@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>주식 시황 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f0f4f8; --bg2: #ffffff; --bg3: #e8edf2; --border: #d1d9e0;
+  --text: #1a202c; --text2: #64748b; --accent: #2563eb;
+  --up: #dc2626; --down: #2563eb; --mustard: #d4ac0d;
+  --font-mono: 'Malgun Gothic', '맑은 고딕', sans-serif; --font-ui: 'Georgia', serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font-mono); font-size: 14px; min-height: 100vh; }
+
+.header {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1F3864 100%);
+  border-bottom: 1px solid #1e3a8a;
+  padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
+}
+.header h1 { font-family: var(--font-ui); font-size: 22px; color: #ffffff; letter-spacing: 1px; }
+.header .subtitle { font-size: 11px; color: #bfdbfe; margin-top: 2px; }
+.header-right { text-align: right; font-size: 11px; color: #bfdbfe; }
+
+/* 로딩 */
+#loading {
+  position: fixed; inset: 0; background: #f0f4f8;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px; z-index: 999;
+}
+.spinner {
+  width: 40px; height: 40px; border: 3px solid #d1d9e0;
+  border-top-color: #2563eb; border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.load-text { font-family: var(--font-ui); color: #64748b; font-size: 13px; }
+
+/* 에러 */
+#error-msg {
+  display: none; padding: 40px 24px; text-align: center;
+  color: var(--up); font-family: var(--font-ui); line-height: 1.8;
+}
+
+.tabs { display: flex; border-bottom: 2px solid var(--border); background: var(--bg2); padding: 0 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.tab { padding: 12px 20px; cursor: pointer; font-family: var(--font-ui); font-size: 14px; color: var(--text2); border-bottom: 2px solid transparent; transition: all 0.2s; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.date-bar { display: flex; gap: 8px; padding: 12px 24px; background: #f8fafc; border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+.date-bar label { font-family: var(--font-ui); color: var(--text2); font-size: 11px; margin-right: 4px; }
+.date-btn { padding: 5px 14px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg3); color: var(--text2); cursor: pointer; font-size: 13px; font-family: var(--font-mono); transition: all 0.2s; }
+.date-btn:hover { color: var(--text); }
+.date-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.date-btn.all.active { background: #7c3aed; border-color: #7c3aed; }
+
+.stat-bar { display: flex; gap: 16px; padding: 10px 24px; background: #eef2f7; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.stat-item { font-size: 13px; }
+.stat-item span { color: var(--text2); }
+.stat-item strong { color: var(--text); margin-left: 4px; }
+
+.content { padding: 20px 24px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+thead th { background: #1F3864; color: white; font-family: var(--font-ui); font-size: 13px; padding: 9px 12px; text-align: center; position: sticky; top: 0; z-index: 2; }
+tbody tr:nth-child(even) td { background: #f8fafc; }
+tbody tr:hover td { background: #eff6ff !important; }
+td { padding: 6px 12px; border-bottom: 1px solid #e8edf2; text-align: center; }
+td.name { text-align: left; font-weight: bold; color: var(--text); min-width: 120px; }
+td.num { text-align: right; }
+td.up { color: var(--up); font-weight: bold; }
+td.down { color: var(--down); font-weight: bold; }
+
+.r1{background:rgba(255,68,68,0.28)!important} .r2{background:rgba(255,140,0,0.28)!important}
+.r3{background:rgba(255,255,0,0.28)!important} .r4{background:rgba(0,204,0,0.28)!important}
+.r5{background:rgba(0,191,255,0.28)!important} .r6{background:rgba(65,105,225,0.28)!important}
+.r7{background:rgba(147,112,219,0.28)!important}
+.name-hl { background: rgba(16,185,129,0.15) !important; }
+.date-sep td { background: var(--mustard) !important; height: 4px; padding: 0; }
+
+.sector-badge { display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; white-space: nowrap; }
+
+.chart-box { background: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.chart-title { font-family: var(--font-ui); font-size: 15px; color: #1a202c; margin-bottom: 16px; font-weight: bold; }
+
+.search-input { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-size: 14px; font-family: var(--font-mono); width: 220px; }
+.search-input:focus { outline: none; border-color: var(--accent); }
+.db-toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+
+.page-header { font-family: var(--font-ui); font-size: 14px; color: var(--text); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f0f4f8; }
+::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- 로딩 -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="load-text">데이터 로딩 중...</div>
+</div>
+
+<!-- 에러 -->
+<div id="error-msg">
+  ⚠️ data.json 파일을 불러올 수 없어요.<br>
+  <small style="color:var(--text2)">index.html 과 같은 폴더에 data.json, sector-db.json 파일이 있는지 확인해주세요.<br>
+  또는 로컬 서버로 실행해주세요 (예: VS Code Live Server)</small>
+</div>
+
+<div id="app" style="display:none">
+  <div class="header">
+    <div>
+      <h1>📊 주식 시황 대시보드</h1>
+      <div class="subtitle">일별 시황 분석 시스템</div>
+    </div>
+    <div class="header-right" style="font-size:13px">
+      <div id="totalStocks"></div>
+      <div id="dateRange"></div>
+      <div id="updatedAt" style="margin-top:2px"></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('stocks')">📋 주식 데이터</div>
+    <div class="tab" onclick="showTab('sector')">🗂️ 섹터 요약</div>
+    <div class="tab" onclick="showTab('investor')">📈 투자자별 순매수</div>
+    <div class="tab" onclick="showTab('sectordb')">🗄️ 섹터 DB</div>
+  </div>
+
+  <!-- 날짜 범위 검색 -->
+  <div class="date-range-bar">
+    <label>📅 기간 검색:</label>
+    <button class="arrow-btn" onclick="moveDate('startDate',-1)">◀</button>
+    <input type="date" id="startDate" onchange="filterRange()"/>
+    <button class="arrow-btn" onclick="moveDate('startDate',1)">▶</button>
+    <span style="color:var(--text2);font-size:12px;margin:0 4px">~</span>
+    <button class="arrow-btn" onclick="moveDate('endDate',-1)">◀</button>
+    <input type="date" id="endDate" onchange="filterRange()"/>
+    <button class="arrow-btn" onclick="moveDate('endDate',1)">▶</button>
+    <button class="range-reset-btn" onclick="resetRange()">초기화</button>
+  </div>
+  <div class="date-bar">
+    <label>날짜:</label>
+    <button class="date-btn all active" onclick="filterDate('all')">전체</button>
+    <div id="dateBtns"></div>
+  </div>
+
+  <div class="stat-bar" id="statBar"></div>
+
+  <!-- 주식 데이터 -->
+  <div id="tab-stocks" class="tab-panel active content">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>날짜</th><th>종목명</th><th>현재가</th><th>등락</th>
+            <th>등락폭</th><th>등락률(%)</th><th>거래대금</th>
+            <th>기관순매수</th><th>외국인순매수</th><th>프로그램순매수</th>
+            <th>시가총액</th><th>섹터</th>
+          </tr>
+        </thead>
+        <tbody id="stockBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 섹터 요약 -->
+  <div id="tab-sector" class="tab-panel content">
+    <div class="chart-box">
+      <div class="chart-title">📊 일자별 테마의 거래대금 변화 <small style="color:var(--text2);font-size:11px">(반도체·- 제외 상위 10개)</small></div>
+      <div style="position:relative;height:380px"><canvas id="barChart"></canvas></div>
+    </div>
+    <div class="page-header">섹터별 집계</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>섹터</th><th>종목수</th><th>상승</th><th>하락</th><th>거래대금 합계</th></tr></thead>
+        <tbody id="sectorBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 투자자별 순매수 -->
+  <div id="tab-investor" class="tab-panel content">
+    <div class="chart-box">
+      <div class="chart-title">📈 투자자별 순매수 변화</div>
+      <div style="position:relative;height:380px"><canvas id="lineChart"></canvas></div>
+    </div>
+    <div class="table-wrap" style="margin-top:16px">
+      <table>
+        <thead><tr><th>일자</th><th>거래대금</th><th>기관순매수</th><th>외국인순매수</th><th>프로그램순매수</th></tr></thead>
+        <tbody id="investorBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 섹터 DB -->
+  <div id="tab-sectordb" class="tab-panel content">
+    <div class="db-toolbar">
+      <input class="search-input" id="dbSearch" placeholder="종목명 또는 섹터 검색..." oninput="renderDB()"/>
+      <span style="color:var(--text2);font-size:11px" id="dbCount"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>종목명</th><th>섹터</th><th>적용시작일</th><th>적용종료일</th></tr></thead>
+        <tbody id="dbBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const SECTOR_STYLE = {
+  "반도체":{"bg":"#dbeafe","fg":"#1d4ed8"},"통신":{"bg":"#d1fae5","fg":"#065f46"},
+  "전력설비":{"bg":"#fef3c7","fg":"#92400e"},"방산":{"bg":"#fee2e2","fg":"#991b1b"},
+  "재건":{"bg":"#ede9fe","fg":"#5b21b6"},"해운":{"bg":"#e0f2fe","fg":"#0369a1"},
+  "게임":{"bg":"#fce7f3","fg":"#9d174d"},"뷰티":{"bg":"#fdf2f8","fg":"#be185d"},
+  "조선":{"bg":"#e0f2fe","fg":"#0369a1"},"바이오":{"bg":"#d1fae5","fg":"#065f46"},
+  "2차전지":{"bg":"#fef3c7","fg":"#92400e"},"스페이스X":{"bg":"#ede9fe","fg":"#5b21b6"},
+  "지주사":{"bg":"#f3f4f6","fg":"#374151"},"원전":{"bg":"#fef3c7","fg":"#92400e"},
+  "자동차":{"bg":"#fee2e2","fg":"#991b1b"},"식품":{"bg":"#fdf2f8","fg":"#be185d"},
+  "금융":{"bg":"#dbeafe","fg":"#1d4ed8"},"IT서비스":{"bg":"#dbeafe","fg":"#1d4ed8"},
+  "재생에너지":{"bg":"#d1fae5","fg":"#065f46"},"수소":{"bg":"#d1fae5","fg":"#065f46"},
+  "알루미늄":{"bg":"#f3f4f6","fg":"#374151"},"석유":{"bg":"#fef3c7","fg":"#92400e"},
+  "-":{"bg":"#f3f4f6","fg":"#9ca3af"},
+};
+const CHART_COLORS = ['#9966FF','#FFFF00','#FF9900','#FF0000','#7030A0','#FF0066','#00B0F0','#808080','#FF4444','#0070C0'];
+const RC = ['r1','r2','r3','r4','r5','r6','r7'];
+
+let STOCKS = [], SECTOR_DB = [], ALL_DATES = [], currentDate = 'all';
+let barChart = null, lineChart = null;
+
+function sectorBadge(s) {
+  const st = SECTOR_STYLE[s] || SECTOR_STYLE['-'];
+  return `<span class="sector-badge" style="background:${st.bg};color:${st.fg}">${s}</span>`;
+}
+function fmt(n) { return n == null ? '-' : Number(n).toLocaleString('ko-KR'); }
+
+// ── 데이터 로드 ───────────────────────────────────────────
+Promise.all([
+    fetch('data.json').then(r => { if(!r.ok) throw new Error('data.json 없음'); return r.json(); }),
+    fetch('sector-db.json').then(r => { if(!r.ok) throw new Error('sector-db.json 없음'); return r.json(); })
+  ])
+  .then(([data, sectorData]) => {
+    STOCKS     = data.stocks;
+    SECTOR_DB  = sectorData.sectors;
+    ALL_DATES  = [...new Set(STOCKS.map(r => r.date))].sort();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+
+    document.getElementById('totalStocks').textContent = `총 ${STOCKS.length}개 레코드 · ${ALL_DATES.length}일`;
+    document.getElementById('dateRange').textContent = `${ALL_DATES[0]} ~ ${ALL_DATES[ALL_DATES.length-1]}`;
+    document.getElementById('updatedAt').textContent = `업데이트: ${data.updated || '-'}`;
+
+    // 날짜 버튼 (최근 7일, 최신→과거 순)
+    const recentDates = ALL_DATES.slice(-7).reverse();
+    document.getElementById('dateBtns').innerHTML = recentDates.map(d =>
+      `<button class="date-btn" onclick="filterDate('${d}')">${d}</button>`
+    ).join('');
+
+    // 날짜 input 현재 월 기본값 설정 (이번달 1일 ~ 말일)
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth()+1).padStart(2,'0');
+    const lastDay = new Date(y, now.getMonth()+1, 0).getDate();
+    document.getElementById('startDate').value = `${y}-${m}-01`;
+    document.getElementById('endDate').value   = `${y}-${m}-${lastDay}`;
+
+    renderAll();
+    renderDB();
+  })
+  .catch(err => {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-msg').style.display = 'block';
+    console.error(err);
+  });
+
+function filterDate(d) {
+  currentDate = d;
+  if (d === 'all') {
+    // 전체 버튼: 현재 월로 리셋
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth()+1).padStart(2,'0');
+    const lastDay = new Date(y, now.getMonth()+1, 0).getDate();
+    document.getElementById('startDate').value = `${y}-${m}-01`;
+    document.getElementById('endDate').value   = `${y}-${m}-${lastDay}`;
+  } else {
+    // 날짜 버튼: 해당 날짜로 시작/종료 모두 설정
+    const iso = dateToISO(d);
+    document.getElementById('startDate').value = iso;
+    document.getElementById('endDate').value   = iso;
+  }
+  document.querySelectorAll('.date-btn').forEach(b => {
+    const isAll = b.textContent === '전체';
+    b.classList.toggle('active', d === 'all' ? isAll : b.textContent === d);
+  });
+  renderAll();
+}
+
+function moveDate(id, days) {
+  const input = document.getElementById(id);
+  if (!input.value) return;
+  const d = new Date(input.value);
+  d.setDate(d.getDate() + days);
+  input.value = d.toISOString().slice(0,10);
+  document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+  filterRange();
+}
+
+function filterRange() {
+  const start = document.getElementById('startDate').value;
+  const end   = document.getElementById('endDate').value;
+  if (!start && !end) { resetRange(); return; }
+  document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+  currentDate = {start, end};
+  renderAll();
+}
+
+function resetRange() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth()+1).padStart(2,'0');
+  const lastDay = new Date(y, now.getMonth()+1, 0).getDate();
+  document.getElementById('startDate').value = `${y}-${m}-01`;
+  document.getElementById('endDate').value   = `${y}-${m}-${lastDay}`;
+  filterDate('all');
+}
+
+function showTab(name) {
+  const names = ['stocks','sector','investor','sectordb'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i] === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  if (name === 'sector')   renderSector();
+  if (name === 'investor') renderInvestor();
+}
+
+// "2026.04.17.(금)" → "2026-04-17" 변환
+function dateToISO(d) {
+  const m = d.match(/(\d{4})\.(\d{2})\.(\d{2})./);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : d;
+}
+
+function getFiltered() {
+  if (currentDate === 'all') return STOCKS;
+  if (typeof currentDate === 'object') {
+    const {start, end} = currentDate;
+    return STOCKS.filter(r => {
+      const iso = dateToISO(r.date);
+      if (start && end) return iso >= start && iso <= end;
+      if (start) return iso >= start;
+      if (end)   return iso <= end;
+      return true;
+    });
+  }
+  return STOCKS.filter(r => r.date === currentDate);
+}
+
+function buildRankMap(data, key) {
+  const sorted = [...data].sort((a,b) => b[key] - a[key]);
+  const m = {};
+  sorted.slice(0,7).forEach((r,i) => { m[r.name+'_'+r.date] = i; });
+  return m;
+}
+
+function renderAll() { renderStocks(); updateStats(); }
+
+function updateStats() {
+  const data = getFiltered();
+  const up   = data.filter(r => r.sign === '↑' || r.sign === '▲').length;
+  const down = data.filter(r => r.sign === '▼').length;
+  const totalAmt = data.reduce((s,r) => s+r.amt, 0);
+  document.getElementById('statBar').innerHTML = `
+    <div class="stat-item"><span>종목수</span><strong>${data.length}</strong></div>
+    <div class="stat-item"><span>상승</span><strong style="color:#ef4444">${up}</strong></div>
+    <div class="stat-item"><span>하락</span><strong style="color:#3b82f6">${down}</strong></div>
+    <div class="stat-item"><span>총 거래대금</span><strong>${fmt(totalAmt)}</strong></div>
+  `;
+}
+
+function renderStocks() {
+  const data = getFiltered();
+
+  // 날짜별로 독립적으로 순위 계산
+  const dateGroups = {};
+  data.forEach(r => {
+    if (!dateGroups[r.date]) dateGroups[r.date] = [];
+    dateGroups[r.date].push(r);
+  });
+  const rankByDate = {};
+  Object.entries(dateGroups).forEach(([date, rows]) => {
+    rankByDate[date] = {
+      rate: buildRankMap(rows,'rate'),
+      amt:  buildRankMap(rows,'amt'),
+      inst: buildRankMap(rows,'inst'),
+      forg: buildRankMap(rows,'forg'),
+      prog: buildRankMap(rows,'prog'),
+    };
+  });
+
+  let html = '', lastDate = null;
+  data.forEach(r => {
+    const k = r.name+'_'+r.date;
+    const ranks = rankByDate[r.date];
+    const isUp = r.sign==='↑'||r.sign==='▲', isDown = r.sign==='▼';
+    const dc = isUp?'up':(isDown?'down':'');
+    if (lastDate && lastDate !== r.date)
+      html += `<tr class="date-sep"><td colspan="12"></td></tr>`;
+    const showDate = lastDate !== r.date;
+    lastDate = r.date;
+    const rAmt=ranks.amt[k], rInst=ranks.inst[k], rFor=ranks.forg[k], rProg=ranks.prog[k], rRate=ranks.rate[k];
+    const colored = [rAmt,rInst,rFor,rProg].filter(v=>v!==undefined).length;
+    const nameClass = (colored>=2 && (rAmt!==undefined||rInst!==undefined)) ? 'name name-hl' : 'name';
+    html += `<tr>
+      <td style="color:var(--text2);font-size:13px;white-space:nowrap">${showDate?r.date:''}</td>
+      <td class="${nameClass}">${r.name}</td>
+      <td class="num">${fmt(r.price)}</td>
+      <td class="${dc}">${r.sign}</td>
+      <td class="num ${dc}">${r.chg?fmt(Math.abs(r.chg)):''}</td>
+      <td class="num ${dc} ${rRate!==undefined?RC[rRate]:''}">${r.rate?r.rate.toFixed(2)+'%':''}</td>
+      <td class="num ${rAmt!==undefined?RC[rAmt]:''}">${fmt(r.amt)}</td>
+      <td class="num ${rInst!==undefined?RC[rInst]:''}">${fmt(r.inst)}</td>
+      <td class="num ${rFor!==undefined?RC[rFor]:''}">${fmt(r.forg)}</td>
+      <td class="num ${rProg!==undefined?RC[rProg]:''}">${fmt(r.prog)}</td>
+      <td class="num">${fmt(r.mktcap)}</td>
+      <td>${sectorBadge(r.sector)}</td>
+    </tr>`;
+  });
+  document.getElementById('stockBody').innerHTML = html;
+}
+
+function renderSector() {
+  const data = getFiltered();
+  const sectors = {};
+  data.forEach(r => {
+    if (!sectors[r.sector]) sectors[r.sector]={count:0,up:0,down:0,amount:0};
+    sectors[r.sector].count++;
+    if(r.sign==='↑'||r.sign==='▲') sectors[r.sector].up++;
+    else if(r.sign==='▼') sectors[r.sector].down++;
+    sectors[r.sector].amount += r.amt;
+  });
+  const sorted = Object.entries(sectors).sort((a,b)=>b[1].amount-a[1].amount);
+  const total = sorted.reduce((a,[,v])=>({count:a.count+v.count,up:a.up+v.up,down:a.down+v.down,amount:a.amount+v.amount}),{count:0,up:0,down:0,amount:0});
+
+  document.getElementById('sectorBody').innerHTML =
+    sorted.map(([sec,v]) => `<tr>
+      <td>${sectorBadge(sec)}</td>
+      <td class="num">${v.count}</td>
+      <td class="num" style="color:#ef4444">${v.up}</td>
+      <td class="num" style="color:#3b82f6">${v.down}</td>
+      <td class="num">${fmt(v.amount)}</td>
+    </tr>`).join('') +
+    `<tr style="background:rgba(59,130,246,0.1);font-weight:bold">
+      <td>합계</td><td class="num">${total.count}</td>
+      <td class="num" style="color:#ef4444">${total.up}</td>
+      <td class="num" style="color:#3b82f6">${total.down}</td>
+      <td class="num">${fmt(total.amount)}</td>
+    </tr>`;
+
+  // 막대 차트 (반도체/- 제외 상위 10개)
+  const sectorTotals = {};
+  STOCKS.forEach(r => {
+    if(r.sector==='반도체'||r.sector==='-') return;
+    sectorTotals[r.sector] = (sectorTotals[r.sector]||0) + r.amt;
+  });
+  const top10 = Object.entries(sectorTotals).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([s])=>s);
+
+  const datasets = top10.map((sec,i) => ({
+    label: sec,
+    data: ALL_DATES.map(d => STOCKS.filter(r=>r.date===d&&r.sector===sec).reduce((s,r)=>s+r.amt,0)||null),
+    backgroundColor: CHART_COLORS[i], borderColor: CHART_COLORS[i], borderWidth:1
+  }));
+
+  if(barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart'), {
+    type:'bar', data:{ labels:ALL_DATES, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'top', labels:{ color:'#1a202c', font:{size:11} } },
+        tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${fmt(ctx.raw)}` } }
+      },
+      scales:{
+        x:{ ticks:{color:'#64748b',font:{size:10}}, grid:{color:'rgba(0,0,0,0.05)'} },
+        y:{ ticks:{color:'#64748b',font:{size:10},callback:v=>fmt(v)}, grid:{color:'rgba(0,0,0,0.05)'} }
+      }
+    }
+  });
+}
+
+function renderInvestor() {
+  const daily = ALL_DATES.map(d => {
+    const rows = STOCKS.filter(r=>r.date===d);
+    return { date:d, amt:rows.reduce((s,r)=>s+r.amt,0), inst:rows.reduce((s,r)=>s+r.inst,0),
+             forg:rows.reduce((s,r)=>s+r.forg,0), prog:rows.reduce((s,r)=>s+r.prog,0) };
+  });
+
+  document.getElementById('investorBody').innerHTML = daily.map(d => `<tr>
+    <td style="color:var(--text2)">${d.date}</td>
+    <td class="num">${fmt(d.amt)}</td>
+    <td class="num ${d.inst<0?'down':''}">${fmt(d.inst)}</td>
+    <td class="num ${d.forg<0?'down':''}">${fmt(d.forg)}</td>
+    <td class="num ${d.prog<0?'down':''}">${fmt(d.prog)}</td>
+  </tr>`).join('');
+
+  if(lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById('lineChart'), {
+    type:'line',
+    data:{
+      labels: daily.map(d=>d.date),
+      datasets:[
+        {label:'거래대금',   data:daily.map(d=>d.amt),  borderColor:'#000000', backgroundColor:'rgba(0,0,0,0.05)', pointRadius:4, tension:0.1},
+        {label:'기관순매수', data:daily.map(d=>d.inst), borderColor:'#FF6600', backgroundColor:'rgba(255,102,0,0.1)',   pointRadius:4, tension:0.1},
+        {label:'외국인순매수',data:daily.map(d=>d.forg), borderColor:'#0070C0', backgroundColor:'rgba(0,112,192,0.1)',  pointRadius:4, tension:0.1},
+        {label:'프로그램순매수',data:daily.map(d=>d.prog),borderColor:'#00B050', backgroundColor:'rgba(0,176,80,0.1)',   pointRadius:4, tension:0.1},
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'top', labels:{color:'#94a3b8',font:{size:11}} },
+        tooltip:{ callbacks:{ label: ctx=>`${ctx.dataset.label}: ${fmt(ctx.raw)}` } }
+      },
+      scales:{
+        x:{ ticks:{color:'#64748b',font:{size:10}}, grid:{color:'rgba(0,0,0,0.05)'} },
+        y:{ ticks:{color:'#64748b',font:{size:10},callback:v=>fmt(v)}, grid:{color:'rgba(0,0,0,0.05)'} }
+      }
+    }
+  });
+}
+
+function renderDB() {
+  const q = document.getElementById('dbSearch').value.toLowerCase();
+  const filtered = SECTOR_DB.filter(r => r.name.toLowerCase().includes(q) || r.sector.includes(q));
+  document.getElementById('dbCount').textContent = `${filtered.length}개`;
+  document.getElementById('dbBody').innerHTML = filtered.map(r => `<tr>
+    <td class="name">${r.name}</td>
+    <td>${sectorBadge(r.sector)}</td>
+    <td style="color:var(--text2)">${r.start}</td>
+    <td style="color:var(--text2)">${r.end}</td>
+  </tr>`).join('');
+}
+</script>
+</body>
+</html>
