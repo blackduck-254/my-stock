@@ -69,7 +69,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-mono);
 table { width: 100%; border-collapse: collapse; white-space: nowrap; }
 thead th { background: #1F3864; color: white; font-family: var(--font-ui); font-size: 13px; padding: 6px 8px; text-align: center; position: sticky; top: 0; z-index: 2; }
 tbody tr.even-row td { background: #f8fafc; }
-tbody tr:hover td { background: #eff6ff !important; }
+tbody tr:hover td { background: #bfdbfe !important; }
 td { padding: 2px 4px; border-bottom: 1px solid #e8edf2; text-align: center; }
 td.name { text-align: left; font-weight: bold; color: var(--text); min-width: 120px; }
 td.num { text-align: right; }
@@ -120,6 +120,63 @@ td.down { color: var(--down); font-weight: bold; }
   font-family: var(--font-mono); transition: all 0.2s;
 }
 .range-reset-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* 검색영역 저장 버튼 */
+.save-btn {
+  padding: 10px 22px; border-radius: 5px; border: none;
+  background: #16a34a; color: #fff; font-size: 16px; cursor: pointer;
+  font-family: var(--font-mono); font-weight: bold; transition: all 0.2s;
+}
+.save-btn:hover { background: #15803d; }
+.save-btn:active { transform: scale(0.97); }
+.save-btn.saved { background: #64748b; }
+
+/* 토스트 메시지 */
+.toast {
+  position: fixed; top: 20px; right: 20px; z-index: 9999;
+  padding: 12px 24px; border-radius: 6px;
+  background: #1f2937; color: #fff; font-size: 14px;
+  font-family: var(--font-mono); font-weight: bold;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  opacity: 0; transform: translateY(-20px);
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: #16a34a; }
+.toast.error { background: #dc2626; }
+
+/* 뉴스 셀: 기본은 div(가벼움) → 클릭시 textarea로 전환 */
+.news-cell {
+  min-height: 45px;
+  max-height: 45px;
+  overflow: hidden;
+  padding: 4px 6px;
+  border: 1px solid #d1d9e0;
+  border-radius: 3px;
+  background: #fff;
+  color: #1a202c;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  line-height: 1.4;
+  cursor: text;
+  white-space: pre-wrap;
+  word-break: break-all;
+  text-align: left;
+}
+.news-cell:empty::before {
+  content: '메모...';
+  color: #cbd5e1;
+}
+.news-cell:hover { border-color: #94a3b8; }
+.news-cell.editing {
+  display: block;
+  width: 100%;
+  height: 45px;
+  resize: vertical;
+  outline: 2px solid var(--accent);
+  overflow: auto;
+}
 </style>
 </head>
 <body>
@@ -147,6 +204,7 @@ td.down { color: var(--down); font-weight: bold; }
       <div id="totalStocks"></div>
       <div id="dateRange"></div>
       <div id="updatedAt" style="margin-top:2px"></div>
+      <button id="downloadBtn" onclick="downloadDataJson()" style="margin-top:6px;padding:5px 14px;background:#2563eb;color:white;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-family:var(--font-mono)">📥 data.json 다운로드</button>
     </div>
   </div>
 
@@ -168,6 +226,7 @@ td.down { color: var(--down); font-weight: bold; }
     <input type="date" id="endDate" onchange="filterRange()"/>
     <button class="arrow-btn" onclick="moveDate('endDate',1)">▶</button>
     <button class="range-reset-btn" onclick="resetRange()">초기화</button>
+    <button class="save-btn" onclick="saveNewsToIndexedDB()" style="margin-left:auto;">💾 저장</button>
   </div>
   <div class="date-bar">
     <label>날짜:</label>
@@ -181,12 +240,27 @@ td.down { color: var(--down); font-weight: bold; }
   <div id="tab-stocks" class="tab-panel active content">
     <div class="table-wrap">
       <table>
+        <colgroup>
+          <col style="width:100px">
+          <col style="width:100px">
+          <col style="width:70px">
+          <col style="width:28px">
+          <col style="width:60px">
+          <col style="width:70px">
+          <col style="width:75px">
+          <col style="width:75px">
+          <col style="width:80px">
+          <col style="width:80px">
+          <col style="width:75px">
+          <col style="width:65px">
+          <col>
+        </colgroup>
         <thead>
           <tr>
             <th>날짜</th><th>종목명</th><th>현재가</th><th>등락</th>
             <th>등락폭</th><th>등락률(%)</th><th>거래대금</th>
             <th>기관순매수</th><th>외국인순매수</th><th>프로그램순매수</th>
-            <th>시가총액</th><th>섹터</th>
+            <th>시가총액</th><th>섹터</th><th>뉴스</th>
           </tr>
         </thead>
         <tbody id="stockBody"></tbody>
@@ -200,6 +274,15 @@ td.down { color: var(--down); font-weight: bold; }
       <div class="chart-title">📊 일자별 테마의 거래대금 변화 <small style="color:var(--text2);font-size:11px">(반도체·- 제외 상위 10개)</small></div>
       <div style="position:relative;height:380px"><canvas id="barChart"></canvas></div>
     </div>
+
+    <!-- 섹터 거래대금 순위 -->
+    <div class="chart-box" style="margin-bottom:16px;overflow-x:auto;">
+      <div class="chart-title">🏆 섹터 거래대금 순위 <small style="color:var(--text2);font-size:11px">(기간 필터 연동)</small></div>
+      <table id="sectorRankTable" style="border-collapse:collapse;white-space:nowrap;width:auto;">
+        <tbody id="sectorRankBody"></tbody>
+      </table>
+    </div>
+
     <div class="page-header">섹터별 집계</div>
     <div class="table-wrap">
       <table>
@@ -258,6 +341,174 @@ const RC = ['r1','r2','r3','r4','r5','r6','r7'];
 
 let STOCKS = [], SECTOR_DB = [], ALL_DATES = [], currentDate = 'all';
 let barChart = null, lineChart = null;
+let NEWS_MAP = {};
+let DATA_META = {};
+let IS_DIRTY = false;  // 저장되지 않은 변경사항 여부
+
+// ── IndexedDB 뉴스 중간저장 ─────────────────────────────────
+const DB_NAME = 'stockDashboard';
+const DB_STORE = 'news';
+const DB_VERSION = 1;
+let dbInstance = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (dbInstance) { resolve(dbInstance); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
+    };
+    req.onsuccess = e => { dbInstance = e.target.result; resolve(dbInstance); };
+    req.onerror  = e => reject(e.target.error);
+  });
+}
+
+async function loadNewsFromDB() {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readonly');
+      const req = tx.objectStore(DB_STORE).get('NEWS_MAP');
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror   = () => reject(req.error);
+    });
+  } catch(e) { console.warn('IndexedDB load 실패:', e); return null; }
+}
+
+async function saveNewsToIndexedDB() {
+  try {
+    // 편집 중인 textarea 값도 NEWS_MAP에 반영
+    document.querySelectorAll('textarea[data-key]').forEach(inp => {
+      NEWS_MAP[inp.dataset.key] = inp.value.trim();
+    });
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).put(NEWS_MAP, 'NEWS_MAP');
+      tx.oncomplete = () => resolve();
+      tx.onerror    = () => reject(tx.error);
+    });
+    IS_DIRTY = false;
+    updateDirtyIndicator();
+    showToast('✓ 저장됨 (브라우저 내)', 'success');
+  } catch(e) {
+    console.error(e);
+    showToast('저장 실패: ' + e.message, 'error');
+  }
+}
+
+async function clearNewsDB() {
+  try {
+    const db = await openDB();
+    await new Promise((resolve) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).delete('NEWS_MAP');
+      tx.oncomplete = () => resolve();
+      tx.onerror    = () => resolve();
+    });
+  } catch(e) { console.warn(e); }
+}
+
+// ── 토스트 메시지 ─────────────────────────────────
+let toastTimer = null;
+function showToast(msg, type='success') {
+  let el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.className = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+// ── 저장 안 된 변경사항 표시 ─────────────────────────────────
+function markDirty() {
+  IS_DIRTY = true;
+  updateDirtyIndicator();
+}
+function updateDirtyIndicator() {
+  const btn = document.querySelector('.save-btn');
+  if (!btn) return;
+  if (IS_DIRTY) {
+    btn.textContent = '💾 저장 (변경됨)';
+    btn.classList.remove('saved');
+  } else {
+    btn.textContent = '💾 저장';
+    btn.classList.remove('saved');
+  }
+}
+
+// 브라우저 닫기/새로고침 시 경고
+window.addEventListener('beforeunload', (e) => {
+  if (IS_DIRTY) { e.preventDefault(); e.returnValue = ''; }
+});
+
+function saveNews(key, val) { NEWS_MAP[key] = val; }
+
+function editNewsCell(div) {
+  if (div.tagName !== 'DIV') return;
+  const key = div.dataset.key;
+  const current = NEWS_MAP[key] || '';
+  const td = div.parentNode;
+  const ta = document.createElement('textarea');
+  ta.className = 'news-cell editing';
+  ta.dataset.key = key;
+  ta.value = current;
+  ta.style.cssText = 'width:100%;height:45px;font-size:13px;font-family:var(--font-mono);border:1px solid #d1d9e0;border-radius:3px;padding:2px 4px;background:#fff;color:#1a202c;resize:vertical;line-height:1.4;';
+  ta.addEventListener('blur', () => {
+    const newVal = ta.value.trim();
+    if (newVal !== (NEWS_MAP[key] || '')) markDirty();
+    NEWS_MAP[key] = newVal;
+    const newDiv = document.createElement('div');
+    newDiv.className = 'news-cell';
+    newDiv.dataset.key = key;
+    newDiv.onclick = function() { editNewsCell(this); };
+    newDiv.textContent = newVal;
+    td.replaceChild(newDiv, ta);
+  });
+  td.replaceChild(ta, div);
+  ta.focus();
+  // 커서를 맨 뒤로
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function downloadDataJson() {
+  // 현재 화면의 input 값을 NEWS_MAP에 반영 (혹시 편집 중인 textarea가 있다면)
+  document.querySelectorAll('textarea[data-key]').forEach(inp => {
+    NEWS_MAP[inp.dataset.key] = inp.value.trim();
+  });
+  const out = {
+    version: DATA_META.version || '1.0',
+    updated: DATA_META.updated || '',
+    stocks: STOCKS.map(r => {
+      const obj = {...r};
+      const news = NEWS_MAP[r.date+'_'+r.name] || '';
+      if (news) obj.news = news; else delete obj.news;
+      return obj;
+    })
+  };
+  const blob = new Blob([JSON.stringify(out, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'data.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  // 다운로드 완료 후 IndexedDB 비우기 (동기화)
+  // data.json으로 내보냈으므로 중간저장 초기화
+  clearNewsDB();
+  IS_DIRTY = false;
+  updateDirtyIndicator();
+  showToast('📥 data.json 다운로드 완료', 'success');
+}
+
+function editNews(td) {}
+
 
 function sectorBadge(s) {
   const st = SECTOR_STYLE[s] || SECTOR_STYLE['-'];
@@ -268,12 +519,25 @@ function fmt(n) { return n == null ? '-' : Number(n).toLocaleString('ko-KR'); }
 // ── 데이터 로드 ───────────────────────────────────────────
 Promise.all([
     fetch('data.json').then(r => { if(!r.ok) throw new Error('data.json 없음'); return r.json(); }),
-    fetch('sector-db.json').then(r => { if(!r.ok) throw new Error('sector-db.json 없음'); return r.json(); })
+    fetch('sector-db.json').then(r => { if(!r.ok) throw new Error('sector-db.json 없음'); return r.json(); }),
+    loadNewsFromDB()
   ])
-  .then(([data, sectorData]) => {
+  .then(([data, sectorData, savedNews]) => {
     STOCKS     = data.stocks;
     SECTOR_DB  = sectorData.sectors;
     ALL_DATES  = [...new Set(STOCKS.map(r => r.date))].sort();
+
+    // data.json의 news 필드를 NEWS_MAP으로 로드
+    STOCKS.forEach(r => { if (r.news) NEWS_MAP[r.date+'_'+r.name] = r.news; });
+    DATA_META = { version: data.version, updated: data.updated };
+
+    // IndexedDB에 저장된 중간저장본이 있으면 덮어쓰기 (더 최신)
+    let restoredCount = 0;
+    if (savedNews && typeof savedNews === 'object') {
+      Object.entries(savedNews).forEach(([k, v]) => {
+        if (v && NEWS_MAP[k] !== v) { NEWS_MAP[k] = v; restoredCount++; }
+      });
+    }
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'block';
@@ -288,16 +552,20 @@ Promise.all([
       `<button class="date-btn" onclick="filterDate('${d}')">${d}</button>`
     ).join('');
 
-    // 날짜 input 현재 월 기본값 설정 (이번달 1일 ~ 말일)
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth()+1).padStart(2,'0');
-    const lastDay = new Date(y, now.getMonth()+1, 0).getDate();
-    document.getElementById('startDate').value = `${y}-${m}-01`;
-    document.getElementById('endDate').value   = `${y}-${m}-${lastDay}`;
+    // 날짜 input 기본값: 최근 2주 (오늘 기준)
+    const todayISO = new Date().toISOString().slice(0,10);
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 13);
+    document.getElementById('startDate').value = twoWeeksAgo.toISOString().slice(0,10);
+    document.getElementById('endDate').value   = todayISO;
+    currentDate = { start: twoWeeksAgo.toISOString().slice(0,10), end: todayISO };
 
     renderAll();
     renderDB();
+
+    if (restoredCount > 0) {
+      showToast(`📂 중간저장 ${restoredCount}건 복원됨`, 'success');
+    }
   })
   .catch(err => {
     document.getElementById('loading').style.display = 'none';
@@ -399,7 +667,11 @@ function buildRankMap(data, key) {
   return m;
 }
 
-function renderAll() { renderStocks(); updateStats(); }
+function renderAll() {
+  renderStocks();
+  updateStats();
+  if (document.getElementById('tab-sector').classList.contains('active')) renderSector();
+}
 
 function updateStats() {
   const data = getFiltered();
@@ -441,7 +713,7 @@ function renderStocks() {
     const isUp = r.sign==='↑'||r.sign==='▲', isDown = r.sign==='▼';
     const dc = isUp?'up':(isDown?'down':'');
     if (lastDate && lastDate !== r.date)
-      html += `<tr class="date-sep"><td colspan="12"></td></tr>`;
+      html += `<tr class="date-sep"><td colspan="13"></td></tr>`;
     const showDate = lastDate !== r.date;
     lastDate = r.date;
     const rAmt=ranks.amt[k], rInst=ranks.inst[k], rFor=ranks.forg[k], rProg=ranks.prog[k], rRate=ranks.rate[k];
@@ -460,6 +732,7 @@ function renderStocks() {
       <td class="num ${rProg!==undefined?RC[rProg]:''}">${fmt(r.prog)}</td>
       <td class="num">${fmt(r.mktcap)}</td>
       <td>${sectorBadge(r.sector)}</td>
+      <td style="padding:2px 4px;"><div class="news-cell" data-key="${r.date}_${r.name}" onclick="editNewsCell(this)">${(NEWS_MAP[r.date+'_'+r.name]||'').replace(/</g,'&lt;')}</div></td>
     </tr>`;
   });
   document.getElementById('stockBody').innerHTML = html;
@@ -475,6 +748,24 @@ function renderSector() {
     else if(r.sign==='▼') sectors[r.sector].down++;
     sectors[r.sector].amount += r.amt;
   });
+
+  // 섹터 거래대금 순위 테이블 (기간 필터 연동)
+  const rankSorted = Object.entries(sectors)
+    .filter(([s]) => s !== '-')
+    .sort((a,b) => b[1].amount - a[1].amount);
+
+  const cellStyle = 'border:1px solid #d1d9e0;padding:4px 10px;text-align:center;font-size:13px;';
+  const rankRow  = rankSorted.map(([,], i) =>
+    `<td style="${cellStyle}font-weight:bold;color:#1e3a8a;background:#dbeafe;">${i+1}</td>`).join('');
+  const amtRow   = rankSorted.map(([,v]) =>
+    `<td style="${cellStyle}color:#374151;">${fmt(v.amount)}</td>`).join('');
+  const secRow   = rankSorted.map(([s]) =>
+    `<td style="${cellStyle}">${sectorBadge(s)}</td>`).join('');
+
+  document.getElementById('sectorRankBody').innerHTML =
+    `<tr><td style="${cellStyle}font-weight:bold;background:#f8fafc;color:#64748b;">순위</td>${rankRow}</tr>` +
+    `<tr><td style="${cellStyle}font-weight:bold;background:#f8fafc;color:#64748b;">거래대금</td>${amtRow}</tr>` +
+    `<tr><td style="${cellStyle}font-weight:bold;background:#f8fafc;color:#64748b;">섹터</td>${secRow}</tr>`;
   // 날짜별로 섹터 집계
   const dateList = [...new Set(data.map(r => r.date))].sort((a,b) => b.localeCompare(a));
   let shtml = '';
