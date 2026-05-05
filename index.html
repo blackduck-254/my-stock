@@ -84,6 +84,20 @@ td.down { color: var(--down); font-weight: bold; }
 .date-sep td { background: var(--mustard) !important; height: 4px; padding: 0; }
 
 .sector-badge { display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; white-space: nowrap; }
+.sector-badge.pending {
+  outline: 2px dashed #dc2626;
+  outline-offset: 1px;
+  animation: pulse-pending 1.6s ease-in-out infinite;
+}
+@keyframes pulse-pending {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55); }
+  50%      { box-shadow: 0 0 0 5px rgba(220, 38, 38, 0); }
+}
+.sector-cell-clickable { cursor: pointer; }
+.sector-cell-clickable:hover .sector-badge {
+  filter: brightness(0.92);
+  box-shadow: 0 0 0 2px var(--accent);
+}
 
 .chart-box { background: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
 .chart-title { font-family: var(--font-ui); font-size: 15px; color: #1a202c; margin-bottom: 16px; font-weight: bold; }
@@ -304,6 +318,344 @@ td.down { color: var(--down); font-weight: bold; }
   outline: 2px solid var(--accent);
   overflow: auto;
 }
+
+/* ── 일일 데이터 입력 모달 ─────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(0,0,0,0.5);
+  align-items: flex-start; justify-content: center;
+  padding: 40px 20px; overflow-y: auto;
+}
+.modal-overlay.show { display: flex; }
+.modal-box {
+  background: #fff; border-radius: 8px;
+  width: 100%; max-width: 880px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+.modal-header {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1F3864 100%);
+  color: #fff; padding: 14px 20px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--font-ui); font-size: 16px; font-weight: bold;
+}
+.modal-close {
+  background: none; border: none; color: #fff;
+  font-size: 22px; cursor: pointer; line-height: 1;
+}
+.modal-body { padding: 20px; }
+.modal-body label {
+  display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px;
+}
+.modal-body input[type="date"] {
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: 5px;
+  font-family: var(--font-mono); font-size: 14px;
+}
+.modal-body textarea {
+  width: 100%; min-height: 220px;
+  padding: 10px; border: 1px solid var(--border); border-radius: 5px;
+  font-family: var(--font-mono); font-size: 13px; resize: vertical;
+  white-space: pre; line-height: 1.5;
+}
+.modal-body textarea:focus { outline: none; border-color: var(--accent); }
+.modal-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 14px 20px; border-top: 1px solid var(--border); background: #f8fafc;
+}
+.modal-actions button {
+  padding: 8px 18px; border-radius: 5px; cursor: pointer;
+  font-family: var(--font-mono); font-size: 14px; font-weight: bold;
+  border: 1px solid var(--border);
+}
+.btn-primary {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+.btn-primary:hover { background: #1d4ed8; }
+.btn-success {
+  background: #16a34a; color: #fff; border-color: #16a34a;
+}
+.btn-success:hover { background: #15803d; }
+.btn-secondary { background: #fff; color: var(--text); }
+.btn-secondary:hover { background: #f1f5f9; }
+
+.preview-box {
+  margin-top: 14px; padding: 12px; border: 1px solid var(--border);
+  border-radius: 6px; background: #f8fafc; font-size: 13px; line-height: 1.6;
+}
+.preview-stats { display: flex; gap: 16px; margin-bottom: 8px; }
+.preview-stats span strong { color: var(--accent); margin-left: 4px; }
+.preview-list {
+  max-height: 160px; overflow-y: auto; margin-top: 8px;
+  background: #fff; border: 1px solid var(--border); border-radius: 4px;
+  padding: 8px;
+}
+.preview-list .new-stock { color: #d97706; font-weight: bold; }
+.preview-warning {
+  margin-top: 8px; padding: 8px 12px; border-radius: 4px;
+  background: #fef3c7; color: #92400e; font-size: 12px;
+}
+.preview-error {
+  margin-top: 8px; padding: 8px 12px; border-radius: 4px;
+  background: #fee2e2; color: #991b1b; font-size: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   📊 종목 분석 탭 전용 스타일 (네이비/골드 테마)
+   ═══════════════════════════════════════════════════════════ */
+.analysis-panel {
+  --a-navy: #0f2342;
+  --a-navy2: #1a3560;
+  --a-gold: #c8a84b;
+  --a-gold2: #e8c96b;
+  --a-bg: #f4f6fa;
+  --a-card: #ffffff;
+  --a-text: #1a1a2e;
+  --a-muted: #6b7280;
+  --a-border: #e2e8f0;
+  --a-green: #059669;
+  --a-red: #dc2626;
+  background: var(--a-bg);
+  padding: 0;
+  margin: -20px -24px 0;  /* tab-panel.content의 padding 상쇄 */
+}
+
+/* 분석 탭 네비게이션 바 */
+.analysis-nav {
+  background: #fff;
+  border-bottom: 2px solid var(--a-border);
+  padding: 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.analysis-nav-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+.analysis-nav .nav-label {
+  font-size: 12px; font-weight: 600; color: var(--a-muted); white-space: nowrap;
+  padding-top: 7px;
+  min-width: 32px;
+}
+.analysis-nav .pill-group {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  flex: 1;
+}
+.analysis-nav .pill {
+  height: 30px;
+  padding: 0 14px;
+  border: 1.5px solid var(--a-border);
+  border-radius: 16px;
+  background: #f8f9fc;
+  color: var(--a-navy);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.analysis-nav .pill:hover {
+  filter: brightness(0.92);
+}
+.analysis-nav .pill.sector {
+  /* 섹터 알약은 SECTOR_STYLE 색상을 인라인으로 받음. active 강조는 JS에서 borderColor + boxShadow로 처리 */
+}
+.analysis-nav .pill.stock.active {
+  background: var(--a-gold);
+  color: var(--a-navy);
+  border-color: var(--a-gold);
+}
+.analysis-nav .pill .code {
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+.analysis-nav .empty-msg { margin-left: auto; color: var(--a-muted); font-size: 12px; padding-top: 8px; white-space: nowrap; }
+
+/* 빈 상태 */
+.analysis-empty {
+  padding: 80px 20px; text-align: center; color: var(--a-muted);
+  font-size: 14px;
+}
+.analysis-empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+/* 종목별 콘텐츠 wrapper */
+.analysis-content { display: none; }
+.analysis-content.active { display: block; }
+
+/* 종목 헤더 */
+.analysis-content .company-header {
+  background: linear-gradient(135deg, var(--a-navy) 0%, var(--a-navy2) 60%, #2a4a7f 100%);
+  padding: 28px 40px 24px;
+  position: relative;
+  overflow: hidden;
+}
+.analysis-content .company-header::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 200px; height: 200px;
+  border-radius: 50%;
+  background: rgba(200,168,75,0.12);
+}
+.analysis-content .company-header::after {
+  content: '';
+  position: absolute;
+  bottom: -20px; left: 30%;
+  width: 300px; height: 80px;
+  border-radius: 50%;
+  background: rgba(200,168,75,0.06);
+}
+.analysis-content .company-header-inner { position: relative; z-index: 1; }
+.analysis-content .company-code { font-size: 12px; color: var(--a-gold2); letter-spacing: 2px; margin-bottom: 4px; }
+.analysis-content .company-name { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+.analysis-content .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+.analysis-content .badge {
+  display: inline-block;
+  background: rgba(200,168,75,0.2);
+  border: 1px solid var(--a-gold);
+  color: var(--a-gold2);
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+}
+.analysis-content .updated {
+  position: absolute; top: 28px; right: 40px;
+  color: rgba(255,255,255,0.5); font-size: 12px; z-index: 1;
+}
+
+/* 변경이력 배너 */
+.analysis-content .changelog {
+  background: #fff8e7;
+  border-left: 4px solid var(--a-gold);
+  padding: 8px 24px;
+  font-size: 12px;
+  color: #7c5c00;
+}
+
+/* 컨테이너 */
+.analysis-content .container { max-width: 960px; margin: 0 auto; padding: 28px 20px; }
+
+/* 섹션 */
+.analysis-content .section {
+  background: var(--a-card);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.04);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.analysis-content .section-header {
+  background: linear-gradient(90deg, var(--a-navy) 0%, var(--a-navy2) 100%);
+  padding: 13px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.analysis-content .section-num {
+  width: 24px; height: 24px;
+  background: var(--a-gold);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  color: var(--a-navy);
+  flex-shrink: 0;
+}
+.analysis-content .section-title { color: #fff; font-size: 14px; font-weight: 600; }
+.analysis-content .section-body { padding: 18px 24px; }
+
+/* 요약 박스 */
+.analysis-content .summary {
+  background: #f8f9fc;
+  border-left: 3px solid var(--a-gold);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border-radius: 0 6px 6px 0;
+  color: var(--a-navy);
+  font-size: 13px;
+}
+
+/* 분석 탭 내부 테이블 (시황 테이블과 분리) */
+.analysis-content table {
+  width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 10px;
+  white-space: normal;
+}
+.analysis-content th {
+  background: var(--a-navy);
+  color: #fff;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  position: static;
+}
+.analysis-content td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--a-border);
+  vertical-align: middle;
+  text-align: left;
+  white-space: normal;
+}
+.analysis-content tr:last-child td { border-bottom: none; }
+.analysis-content tbody tr:nth-child(even) td { background: #fafbfd; }
+.analysis-content tbody tr:hover td { background: #f0f4ff !important; }
+.analysis-content .bold { font-weight: 700; }
+.analysis-content .est-row td { background: #fffbea !important; font-weight: 600; }
+.analysis-content .tr { text-align: right; }
+.analysis-content .tc { text-align: center; }
+.analysis-content .num { font-family: 'Courier New', monospace; font-size: 13px; }
+
+/* 태그 */
+.analysis-content .tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.analysis-content .tag-beat { background: #dcfce7; color: #166534; }
+.analysis-content .tag-meet { background: #dbeafe; color: #1e40af; }
+.analysis-content .tag-miss { background: #fee2e2; color: #991b1b; }
+.analysis-content .tag-est  { background: #fef3c7; color: #92400e; }
+.analysis-content .tag-new  { background: #ede9fe; color: #5b21b6; }
+
+/* 불릿 리스트 */
+.analysis-content .bl { list-style: none; padding: 0; margin: 0; }
+.analysis-content .bl li { padding: 6px 0 6px 20px; position: relative; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.analysis-content .bl li:last-child { border-bottom: none; }
+.analysis-content .bl li::before { content: '▸'; position: absolute; left: 0; color: var(--a-gold); font-size: 12px; }
+.analysis-content .bl li.risk::before { content: '⚠'; color: var(--a-red); font-size: 11px; top: 7px; }
+
+/* 소제목 */
+.analysis-content .sub-title {
+  font-weight: 600; font-size: 13px; color: var(--a-navy);
+  margin: 14px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--a-border);
+}
+
+/* 목표주가 박스 */
+.analysis-content .tp-box {
+  background: linear-gradient(135deg, var(--a-navy) 0%, var(--a-navy2) 100%);
+  border-radius: 8px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+}
+.analysis-content .tp-label { color: rgba(255,255,255,0.7); font-size: 12px; }
+.analysis-content .tp-value { color: var(--a-gold2); font-size: 17px; font-weight: 700; }
+.analysis-content .tp-right { margin-left: auto; text-align: right; }
+
+/* 신규계약 강조 */
+.analysis-content .new-row td { background: #f5f0ff !important; }
+.analysis-content .new-row td:first-child { font-weight: 700; color: #5b21b6; }
+
+/* 증감 색상 (분석 탭 전용 - 시황 색상 덮어쓰지 않음) */
+.analysis-content .up { color: #059669; font-weight: 700; }
+.analysis-content .dn { color: #dc2626; font-weight: 700; }
+
 </style>
 </head>
 <body>
@@ -331,7 +683,9 @@ td.down { color: var(--down); font-weight: bold; }
       <div id="totalStocks"></div>
       <div id="dateRange"></div>
       <div id="updatedAt" style="margin-top:2px"></div>
-      <button id="downloadBtn" onclick="downloadDataJson()" style="margin-top:6px;padding:5px 14px;background:#2563eb;color:white;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-family:var(--font-mono)">📥 data.json 다운로드</button>
+      <button id="addDataBtn" onclick="openDataInputModal()" style="margin-top:6px;padding:5px 14px;background:#16a34a;color:white;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-family:var(--font-mono);font-weight:bold;">📝 데이터 추가</button>
+      <button id="downloadBtn" onclick="downloadDataJson()" style="margin-top:6px;margin-left:4px;padding:5px 14px;background:#2563eb;color:white;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-family:var(--font-mono)">📥 data.json 다운로드</button>
+      <button id="downloadSectorBtn" onclick="downloadSectorDbJson()" style="margin-top:6px;margin-left:4px;padding:5px 14px;background:#7c3aed;color:white;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-family:var(--font-mono)">📥 sector-db.json 다운로드</button>
     </div>
   </div>
 
@@ -340,6 +694,7 @@ td.down { color: var(--down); font-weight: bold; }
     <div class="tab" onclick="showTab('sector')">🗂️ 섹터 요약</div>
     <div class="tab" onclick="showTab('investor')">📈 투자자별 순매수</div>
     <div class="tab" onclick="showTab('sectordb')">🗄️ 섹터 DB</div>
+    <div class="tab" onclick="showTab('analysis')">📊 종목 분석</div>
   </div>
 
   <!-- 날짜 범위 검색 -->
@@ -445,18 +800,77 @@ td.down { color: var(--down); font-weight: bold; }
       </table>
     </div>
   </div>
+
+  <!-- 종목 분석 -->
+  <div id="tab-analysis" class="tab-panel content">
+    <div class="analysis-panel">
+      <div class="analysis-nav">
+        <div class="analysis-nav-row">
+          <span class="nav-label">섹터</span>
+          <div class="pill-group" id="analysis-sector-pills"></div>
+          <span class="empty-msg" id="analysis-count"></span>
+        </div>
+        <div class="analysis-nav-row">
+          <span class="nav-label">종목</span>
+          <div class="pill-group" id="analysis-stock-pills"></div>
+        </div>
+      </div>
+      <div id="analysis-body">
+        <div class="analysis-empty" id="analysis-empty-state">
+          <div class="icon">📊</div>
+          <div>섹터를 선택하면 등록된 종목 분석을 볼 수 있습니다</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 일일 데이터 입력 모달 -->
+<div id="dataInputModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>📝 일일 데이터 추가</span>
+      <button class="modal-close" onclick="closeDataInputModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <label>날짜 (기본: 오늘)</label>
+      <input type="date" id="inputDate"/>
+      <p style="font-size:11px;color:var(--text2);margin-top:4px;margin-bottom:14px;">
+        탭으로 구분된 데이터 형식: 종목명 / 현재가 / 등락기호 / 등락폭 / 등락률 / 거래대금 / 기관순매수 / 외국인순매수 / 프로그램순매수 / 시가총액
+      </p>
+      <label>붙여넣기 (prefix * # 공백 자동 제거)</label>
+      <textarea id="inputData" placeholder="*삼성전자&#9;226,500&#9;▲&#9;4,500&#9;2.03&#9;8,387,139&#9;1,075,301&#9;2,039,606&#9;3,113,940&#9;1,324,182,105&#10; 종목명2&#9;..."></textarea>
+      <div id="previewArea"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeDataInputModal()">취소</button>
+      <button class="btn-primary" onclick="parseInputData()">🔍 분석</button>
+      <button id="confirmAddBtn" class="btn-success" onclick="applyInputData()" style="display:none;">✓ 추가</button>
+    </div>
+  </div>
 </div>
 
 <script>
 const SECTOR_STYLE = {
-  "반도체":{"bg":"#dbeafe","fg":"#1d4ed8"},"통신":{"bg":"#d1fae5","fg":"#065f46"},
-  "전력설비":{"bg":"#fef3c7","fg":"#92400e"},"방산":{"bg":"#fee2e2","fg":"#991b1b"},
+  // ★ 메이저 11개: 차트 색상 + 흰 글자 (강조)
+  "반도체":   {"bg":"#4a80d6","fg":"#ffffff"},
+  "2차전지":  {"bg":"#e8924a","fg":"#ffffff"},
+  "전력설비": {"bg":"#7a4ec8","fg":"#ffffff"},
+  "방산":     {"bg":"#d04a4a","fg":"#ffffff"},
+  "원전":     {"bg":"#3aa89e","fg":"#ffffff"},
+  "자동차":   {"bg":"#3ea863","fg":"#ffffff"},
+  "로봇":     {"bg":"#8bbf3a","fg":"#ffffff"},
+  "바이오":   {"bg":"#c84a8c","fg":"#ffffff"},
+  "조선":     {"bg":"#2d5e9e","fg":"#ffffff"},
+  "건설":     {"bg":"#8b6342","fg":"#ffffff"},
+  "우주항공": {"bg":"#d4b340","fg":"#ffffff"},
+  // 비메이저: 기존 파스텔 톤 유지
+  "통신":{"bg":"#d1fae5","fg":"#065f46"},
   "재건":{"bg":"#ede9fe","fg":"#5b21b6"},"해운":{"bg":"#e0f2fe","fg":"#0369a1"},
   "게임":{"bg":"#fce7f3","fg":"#9d174d"},"뷰티":{"bg":"#fdf2f8","fg":"#be185d"},
-  "조선":{"bg":"#e0f2fe","fg":"#0369a1"},"바이오":{"bg":"#d1fae5","fg":"#065f46"},
-  "2차전지":{"bg":"#fef3c7","fg":"#92400e"},"스페이스X":{"bg":"#ede9fe","fg":"#5b21b6"},
-  "지주사":{"bg":"#f3f4f6","fg":"#374151"},"원전":{"bg":"#fef3c7","fg":"#92400e"},
-  "자동차":{"bg":"#fee2e2","fg":"#991b1b"},"식품":{"bg":"#fdf2f8","fg":"#be185d"},
+  "스페이스X":{"bg":"#ede9fe","fg":"#5b21b6"},
+  "지주사":{"bg":"#f3f4f6","fg":"#374151"},
+  "식품":{"bg":"#fdf2f8","fg":"#be185d"},
   "금융":{"bg":"#dbeafe","fg":"#1d4ed8"},"IT서비스":{"bg":"#dbeafe","fg":"#1d4ed8"},
   "재생에너지":{"bg":"#d1fae5","fg":"#065f46"},"수소":{"bg":"#d1fae5","fg":"#065f46"},
   "알루미늄":{"bg":"#f3f4f6","fg":"#374151"},"석유":{"bg":"#fef3c7","fg":"#92400e"},
@@ -466,6 +880,10 @@ const CHART_COLORS = ['#E63946','#F4A261','#2A9D8F','#457B9D','#E9C46A','#264653
 const RC = ['r1','r2','r3','r4','r5','r6','r7'];
 
 let STOCKS = [], SECTOR_DB = [], ALL_DATES = [], currentDate = 'all';
+let ORIGINAL_SECTOR_DB = [];  // 백업용 원본 (페이지 로드 시점의 sector-db.json)
+let SECTOR_DB_META = {};       // sector-db.json의 version/updated 메타
+let ANALYSIS_DATA = [];        // 종목 분석 데이터 (analysis.json)
+let ANALYSIS_META = {};        // analysis.json의 version/updated 메타
 let barChart = null, lineChart = null;
 let NEWS_MAP = {};
 let DATA_META = {};
@@ -502,6 +920,30 @@ async function loadNewsFromDB() {
   } catch(e) { console.warn('IndexedDB load 실패:', e); return null; }
 }
 
+async function loadSectorDBFromIndexedDB() {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readonly');
+      const req = tx.objectStore(DB_STORE).get('SECTOR_DB');
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror   = () => reject(req.error);
+    });
+  } catch(e) { console.warn('IndexedDB sector load 실패:', e); return null; }
+}
+
+async function clearSectorDBFromIndexedDB() {
+  try {
+    const db = await openDB();
+    await new Promise((resolve) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).delete('SECTOR_DB');
+      tx.oncomplete = () => resolve();
+      tx.onerror    = () => resolve();
+    });
+  } catch(e) { console.warn(e); }
+}
+
 async function saveNewsToIndexedDB() {
   try {
     // 편집 중인 textarea 값도 NEWS_MAP에 반영
@@ -512,6 +954,8 @@ async function saveNewsToIndexedDB() {
     await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readwrite');
       tx.objectStore(DB_STORE).put(NEWS_MAP, 'NEWS_MAP');
+      // 섹터 DB도 함께 저장 (변경 사항이 있는 경우)
+      tx.objectStore(DB_STORE).put(SECTOR_DB, 'SECTOR_DB');
       tx.oncomplete = () => resolve();
       tx.onerror    = () => reject(tx.error);
     });
@@ -636,9 +1080,10 @@ function downloadDataJson() {
 function editNews(td) {}
 
 
-function sectorBadge(s) {
+function sectorBadge(s, pending=false) {
   const st = SECTOR_STYLE[s] || SECTOR_STYLE['-'];
-  return `<span class="sector-badge" style="background:${st.bg};color:${st.fg}">${s}</span>`;
+  const cls = pending ? 'sector-badge pending' : 'sector-badge';
+  return `<span class="${cls}" style="background:${st.bg};color:${st.fg}">${s}</span>`;
 }
 function fmt(n) { return n == null ? '-' : Number(n).toLocaleString('ko-KR'); }
 
@@ -646,12 +1091,35 @@ function fmt(n) { return n == null ? '-' : Number(n).toLocaleString('ko-KR'); }
 Promise.all([
     fetch('data.json').then(r => { if(!r.ok) throw new Error('data.json 없음'); return r.json(); }),
     fetch('sector-db.json').then(r => { if(!r.ok) throw new Error('sector-db.json 없음'); return r.json(); }),
-    loadNewsFromDB()
+    loadNewsFromDB(),
+    loadSectorDBFromIndexedDB(),
+    // analysis.json은 선택적 (없어도 다른 기능은 동작)
+    fetch('analysis.json').then(r => r.ok ? r.json() : null).catch(() => null)
   ])
-  .then(([data, sectorData, savedNews]) => {
+  .then(([data, sectorData, savedNews, savedSectorDB, analysisData]) => {
     STOCKS     = data.stocks;
-    SECTOR_DB  = sectorData.sectors;
+    ORIGINAL_SECTOR_DB = JSON.parse(JSON.stringify(sectorData.sectors));  // 깊은 복사로 원본 보관
+    SECTOR_DB_META = { version: sectorData.version, updated: sectorData.updated };
+    // IndexedDB에 저장된 섹터 변경사항이 있으면 사용 (없으면 원본)
+    SECTOR_DB  = (savedSectorDB && Array.isArray(savedSectorDB)) ? savedSectorDB : sectorData.sectors;
     ALL_DATES  = [...new Set(STOCKS.map(r => r.date))].sort();
+
+    // STOCKS의 '-' 섹터를 SECTOR_DB 활성행으로 자동 보정
+    // (사용자가 섹터DB에서 변경했으나 data.json에는 아직 반영되지 않은 경우)
+    const activeSectorMap = {};
+    SECTOR_DB.forEach(r => {
+      if (r.end === '9999-12-31') activeSectorMap[r.name] = r.sector;
+    });
+    let patchedCount = 0;
+    STOCKS.forEach(s => {
+      if (s.sector === '-' && activeSectorMap[s.name] && activeSectorMap[s.name] !== '-') {
+        s.sector = activeSectorMap[s.name];
+        patchedCount++;
+      }
+    });
+    if (patchedCount > 0) {
+      console.log(`[자동 보정] '-' 섹터 ${patchedCount}건을 SECTOR_DB 기준으로 갱신`);
+    }
 
     // data.json의 news 필드를 NEWS_MAP으로 로드
     STOCKS.forEach(r => { if (r.news) NEWS_MAP[r.date+'_'+r.name] = r.news; });
@@ -689,8 +1157,21 @@ Promise.all([
     renderAll();
     renderDB();
 
+    // 종목 분석 데이터 초기화
+    if (analysisData && Array.isArray(analysisData.stocks)) {
+      ANALYSIS_DATA = analysisData.stocks;
+      ANALYSIS_META = { version: analysisData.version, updated: analysisData.updated, count: analysisData.count };
+    } else {
+      ANALYSIS_DATA = [];
+      console.warn('[종목 분석] analysis.json 로드 실패 또는 형식 오류 - 분석 탭이 비어있음');
+    }
+    initAnalysisTab();
+
     if (restoredCount > 0) {
       showToast(`📂 중간저장 ${restoredCount}건 복원됨`, 'success');
+    }
+    if (savedSectorDB && Array.isArray(savedSectorDB)) {
+      showToast(`📂 섹터DB 변경사항 복원됨`, 'success');
     }
   })
   .catch(err => {
@@ -757,10 +1238,17 @@ function resetRange() {
 }
 
 function showTab(name) {
-  const names = ['stocks','sector','investor','sectordb'];
+  const names = ['stocks','sector','investor','sectordb','analysis'];
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i] === name));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById(`tab-${name}`).classList.add('active');
+
+  // 분석 탭에서는 기간/날짜/통계 바 숨기기
+  const hideForAnalysis = name === 'analysis';
+  document.querySelector('.date-range-bar').style.display = hideForAnalysis ? 'none' : '';
+  document.querySelector('.date-bar').style.display      = hideForAnalysis ? 'none' : '';
+  document.getElementById('statBar').style.display       = hideForAnalysis ? 'none' : '';
+
   if (name === 'sector')   renderSector();
   if (name === 'investor') renderInvestor();
 }
@@ -787,8 +1275,23 @@ function getFiltered() {
   } else {
     result = STOCKS.filter(r => r.date === currentDate);
   }
-  // 최신 날짜가 위로 오도록 내림차순 정렬
-  return [...result].sort((a, b) => b.date.localeCompare(a.date));
+  // 정렬: 날짜 내림차순 → 부호 그룹(상승→보합→하락) → 등락률
+  //   상승 그룹: 등락률 내림차순 (많이 오른 게 위)
+  //   하락 그룹: 등락률 오름차순 (덜 떨어진 게 위, 부호 고려 시 -5% > -11%)
+  const signOrder = (s) => {
+    if (s === '↑' || s === '▲') return 0;  // 상승 그룹
+    if (s === '▼' || s === '↓') return 2;  // 하락 그룹
+    return 1;                                 // 보합 (가운데)
+  };
+  return [...result].sort((a, b) => {
+    const dateCmp = b.date.localeCompare(a.date);
+    if (dateCmp !== 0) return dateCmp;
+    const so = signOrder(a.sign);
+    const signCmp = so - signOrder(b.sign);
+    if (signCmp !== 0) return signCmp;
+    // 하락 그룹은 오름차순, 그 외는 내림차순
+    return so === 2 ? (a.rate - b.rate) : (b.rate - a.rate);
+  });
 }
 
 function buildRankMap(data, key) {
@@ -862,7 +1365,7 @@ function renderStocks() {
       <td class="num ${rFor!==undefined?RC[rFor]:''}">${fmt(r.forg)}</td>
       <td class="num ${rProg!==undefined?RC[rProg]:''}">${fmt(r.prog)}</td>
       <td class="num">${fmt(r.mktcap)}</td>
-      <td>${sectorBadge(r.sector)}</td>
+      <td class="sector-cell-clickable" title="클릭하여 섹터 변경" onclick="editStockSectorCell(this, this.dataset.name, this.dataset.sector)" data-name="${r.name.replace(/"/g,'&quot;')}" data-sector="${r.sector}">${sectorBadge(r.sector, r.sector === '-')}</td>
       <td style="padding:2px 4px;"><div class="news-cell" data-key="${r.date}_${r.name}" onclick="editNewsCell(this)">${(NEWS_MAP[r.date+'_'+r.name]||'').replace(/</g,'&lt;')}</div></td>
     </tr>`;
   });
@@ -953,23 +1456,91 @@ function renderSector() {
 
   document.getElementById('sectorBody').innerHTML = shtml;
 
-  // 막대 차트 (반도체/- 제외 상위 10개)
+  // 막대 차트 (반도체/- 제외 상위 10개) — 기간 필터 연동
+  const filteredDates = [...new Set(data.map(r => r.date))].sort();
   const sectorTotals = {};
-  STOCKS.forEach(r => {
+  data.forEach(r => {
     if(r.sector==='반도체'||r.sector==='-') return;
     sectorTotals[r.sector] = (sectorTotals[r.sector]||0) + r.amt;
   });
   const top10 = Object.entries(sectorTotals).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([s])=>s);
 
-  const datasets = top10.map((sec,i) => ({
-    label: sec,
-    data: ALL_DATES.map(d => STOCKS.filter(r=>r.date===d&&r.sector===sec).reduce((s,r)=>s+r.amt,0)||null),
-    backgroundColor: CHART_COLORS[i], borderColor: CHART_COLORS[i], borderWidth:1
-  }));
+  // 메이저 섹터 (단색 우선권 - 테두리 없음)
+  const MAJOR_SECTORS = ['반도체','2차전지','전력설비','방산','원전','자동차','로봇','바이오','조선','건설','우주항공'];
+
+  // 차트 전용 섹터 색상 매핑 (배지 색상과 별개)
+  const CHART_SECTOR_COLOR = {
+    // 메이저 11개 (각 그룹의 단색)
+    '반도체':'#4a80d6', '2차전지':'#e8924a', '전력설비':'#7a4ec8',
+    '방산':'#d04a4a', '원전':'#3aa89e', '자동차':'#3ea863',
+    '로봇':'#8bbf3a', '바이오':'#c84a8c', '조선':'#2d5e9e',
+    '건설':'#8b6342', '우주항공':'#d4b340',
+    // 파랑 그룹
+    'IT서비스':'#4a80d6', '전기전자':'#4a80d6',
+    // 주황 그룹
+    '석유':'#e8924a', '태양광':'#e8924a',
+    // 보라 그룹
+    '수소':'#7a4ec8', '에너지':'#7a4ec8',
+    // 빨강 그룹
+    '게임':'#d04a4a', '면세':'#d04a4a',
+    // 청록 그룹
+    '재생에너지':'#3aa89e', '연료전지':'#3aa89e',
+    // 초록 그룹
+    '식품':'#3ea863', '뷰티':'#3ea863',
+    // 연두 그룹
+    '디지털자산':'#8bbf3a',
+    // 마젠타 그룹
+    '통신':'#c84a8c',
+    // 남색 그룹
+    '해운':'#2d5e9e', 'LNG':'#2d5e9e',
+    // 갈색 그룹
+    '재건':'#8b6342', '철강':'#8b6342', '알루미늄':'#8b6342',
+    // 황금 그룹
+    '금융':'#d4b340', '스페이스X':'#d4b340',
+    // 회색 (메이저 없음)
+    '지주사':'#888888', '포장재':'#888888',
+  };
+
+  // 색상을 일정 비율 어둡게 만드는 함수 (검정과 혼합)
+  const darken = (hex, ratio = 0.3) => {
+    const h = hex.replace('#','');
+    const r = Math.round(parseInt(h.slice(0,2),16) * (1 - ratio));
+    const g = Math.round(parseInt(h.slice(2,4),16) * (1 - ratio));
+    const b = Math.round(parseInt(h.slice(4,6),16) * (1 - ratio));
+    return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+  };
+
+  // 1단계: 모든 섹터의 색상 결정 (CHART_SECTOR_COLOR 우선, 없으면 fallback)
+  const sectorColors = {};
+  top10.forEach((sec, i) => {
+    sectorColors[sec] = CHART_SECTOR_COLOR[sec] || CHART_COLORS[i];
+  });
+
+  const datasets = top10.map((sec,i) => {
+    const fill = sectorColors[sec];
+    const isMajor = MAJOR_SECTORS.includes(sec);
+
+    const ds = {
+      label: sec,
+      data: filteredDates.map(d => data.filter(r=>r.date===d&&r.sector===sec).reduce((s,r)=>s+r.amt,0)||null),
+      backgroundColor: fill,
+    };
+
+    if (isMajor) {
+      // 메이저: 어두운 실선 테두리 ★ 강조
+      ds.borderColor = darken(fill, 0.3);
+      ds.borderWidth = 2.5;
+    } else {
+      // 비메이저: 단색 (테두리 없음)
+      ds.borderColor = fill;
+      ds.borderWidth = 1;
+    }
+    return ds;
+  });
 
   if(barChart) barChart.destroy();
   barChart = new Chart(document.getElementById('barChart'), {
-    type:'bar', data:{ labels:ALL_DATES, datasets },
+    type:'bar', data:{ labels:filteredDates, datasets },
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{
@@ -1029,12 +1600,520 @@ function renderDB() {
   const q = document.getElementById('dbSearch').value.toLowerCase();
   const filtered = SECTOR_DB.filter(r => r.name.toLowerCase().includes(q) || r.sector.includes(q));
   document.getElementById('dbCount').textContent = `${filtered.length}개`;
-  document.getElementById('dbBody').innerHTML = filtered.map(r => `<tr>
-    <td class="name">${r.name}</td>
-    <td>${sectorBadge(r.sector)}</td>
-    <td style="color:var(--text2)">${r.start}</td>
-    <td style="color:var(--text2)">${r.end}</td>
-  </tr>`).join('');
+  // SECTOR_DB 배열 내 인덱스를 data-idx에 담아서, 편집 시 정확한 row를 식별
+  document.getElementById('dbBody').innerHTML = filtered.map(r => {
+    const idx = SECTOR_DB.indexOf(r);
+    const editable = (r.end === '9999-12-31');  // 활성행만 편집 가능
+    const cellStyle = editable
+      ? 'cursor:pointer;'
+      : 'cursor:not-allowed;opacity:0.6;';
+    const onclick = editable ? `onclick="editSectorCell(this, ${idx})"` : '';
+    return `<tr>
+      <td class="name">${r.name}</td>
+      <td style="${cellStyle}" ${onclick} title="${editable?'클릭하여 섹터 변경':'종료된 이력'}">${sectorBadge(r.sector)}</td>
+      <td style="color:var(--text2)">${r.start}</td>
+      <td style="color:var(--text2)">${r.end}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── 섹터 편집 ──────────────────────────────────────────────
+function editSectorCell(td, idx) {
+  if (td.querySelector('select') || td.querySelector('input')) return;  // 이미 편집 중
+  const row = SECTOR_DB[idx];
+  if (!row || row.end !== '9999-12-31') return;  // 활성행만
+
+  // 기존 섹터 목록: SECTOR_STYLE(미리 정의) + SECTOR_DB에서 실제 사용중인 섹터(사용자 신규)
+  const sectorSet = new Set([
+    ...Object.keys(SECTOR_STYLE).filter(s => s !== '-'),
+    ...SECTOR_DB.map(r => r.sector).filter(s => s && s !== '-')
+  ]);
+  const sectorList = [...sectorSet].sort((a, b) => a.localeCompare(b, 'ko-KR'));
+  const opts = sectorList.map(s =>
+    `<option value="${s}" ${s===row.sector?'selected':''}>${s}</option>`
+  ).join('');
+  const select = document.createElement('select');
+  select.style.cssText = 'padding:4px 8px;font-size:13px;font-family:var(--font-mono);border:2px solid var(--accent);border-radius:4px;background:#fff;cursor:pointer;';
+  select.innerHTML = opts + `<option value="__NEW__">➕ 신규 입력</option>`;
+  select.addEventListener('change', () => {
+    if (select.value === '__NEW__') {
+      // 텍스트 입력으로 전환
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.style.cssText = 'padding:4px 8px;font-size:13px;font-family:var(--font-mono);border:2px solid var(--accent);border-radius:4px;background:#fff;width:120px;';
+      input.placeholder = '새 섹터명';
+      input.addEventListener('blur', () => {
+        const v = input.value.trim();
+        if (v && v !== row.sector) applySectorChange(idx, v);
+        else renderDB();
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { input.blur(); }
+        if (e.key === 'Escape') { renderDB(); }
+      });
+      td.innerHTML = '';
+      td.appendChild(input);
+      input.focus();
+    } else if (select.value !== row.sector) {
+      applySectorChange(idx, select.value);
+    } else {
+      renderDB();
+    }
+  });
+  select.addEventListener('blur', () => {
+    // 변경 없이 포커스 잃으면 원복
+    setTimeout(() => {
+      if (td.contains(select)) renderDB();
+    }, 200);
+  });
+  td.innerHTML = '';
+  td.appendChild(select);
+  select.focus();
+}
+
+function applySectorChange(idx, newSector) {
+  const row = SECTOR_DB[idx];
+  if (!row) return;
+  // 오늘 날짜 (요일 포함)
+  const days = ['일','월','화','수','목','금','토'];
+  const now = new Date();
+  const todayStr = `${now.toISOString().slice(0,10)}(${days[now.getDay()]})`;
+
+  // 1) 기존 행: 적용종료일을 오늘로
+  row.end = todayStr;
+  // 2) 새 행 추가
+  SECTOR_DB.push({
+    name: row.name,
+    sector: newSector,
+    start: todayStr,
+    end: '9999-12-31'
+  });
+  // 한글→영문, 종목명 오름차순 정렬
+  SECTOR_DB.sort((a,b) => {
+    if (a.name === b.name) return a.start.localeCompare(b.start);
+    return a.name.localeCompare(b.name, 'ko-KR');
+  });
+  markDirty();
+  renderDB();
+  showToast(`✓ ${row.name}: ${row.sector || '?'} → ${newSector}`, 'success');
+}
+
+// ── 주식 데이터 탭에서 섹터 편집 ─────────────────────────
+function editStockSectorCell(td, stockName, currentSector) {
+  if (td.querySelector('select') || td.querySelector('input')) return;  // 이미 편집 중
+
+  // SECTOR_DB에서 해당 종목의 활성행 찾기
+  const idx = SECTOR_DB.findIndex(r => r.name === stockName && r.end === '9999-12-31');
+  if (idx === -1) {
+    showToast(`섹터DB에 ${stockName} 활성행 없음`, 'error');
+    return;
+  }
+
+  // 섹터 목록
+  const sectorSet = new Set([
+    ...Object.keys(SECTOR_STYLE).filter(s => s !== '-'),
+    ...SECTOR_DB.map(r => r.sector).filter(s => s && s !== '-')
+  ]);
+  const sectorList = [...sectorSet].sort((a, b) => a.localeCompare(b, 'ko-KR'));
+  const opts = sectorList.map(s =>
+    `<option value="${s}" ${s===currentSector?'selected':''}>${s}</option>`
+  ).join('');
+  const select = document.createElement('select');
+  select.style.cssText = 'padding:4px 8px;font-size:13px;font-family:var(--font-mono);border:2px solid var(--accent);border-radius:4px;background:#fff;cursor:pointer;';
+  select.innerHTML = opts + `<option value="__NEW__">➕ 신규 입력</option>`;
+
+  const handleChange = (newSector) => {
+    if (!newSector || newSector === currentSector) { renderStocks(); return; }
+    if (currentSector === '-') {
+      // 케이스 1: 신규 종목 섹터 지정 → 이력 X, STOCKS도 일괄 업데이트
+      applyPendingSectorAssignment(idx, newSector);
+    } else {
+      // 케이스 2: 실제 섹터 변경 → 이력 추가, STOCKS는 그대로
+      applySectorChange(idx, newSector);
+      showToast(`ℹ 과거 데이터는 유지됨. 다음 입력부터 새 섹터 적용`, 'success');
+    }
+    renderStocks();
+  };
+
+  select.addEventListener('change', () => {
+    if (select.value === '__NEW__') {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.style.cssText = 'padding:4px 8px;font-size:13px;font-family:var(--font-mono);border:2px solid var(--accent);border-radius:4px;background:#fff;width:120px;';
+      input.placeholder = '새 섹터명';
+      input.addEventListener('blur', () => {
+        const v = input.value.trim();
+        if (v && v !== currentSector) handleChange(v);
+        else renderStocks();
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') input.blur();
+        if (e.key === 'Escape') renderStocks();
+      });
+      td.innerHTML = '';
+      td.appendChild(input);
+      input.focus();
+    } else {
+      handleChange(select.value);
+    }
+  });
+  select.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (td.contains(select)) renderStocks();
+    }, 200);
+  });
+  td.innerHTML = '';
+  td.appendChild(select);
+  select.focus();
+}
+
+// 케이스 1: '-' 섹터를 실제 섹터로 처음 지정 (이력 X, STOCKS 일괄 갱신)
+function applyPendingSectorAssignment(idx, newSector) {
+  const row = SECTOR_DB[idx];
+  if (!row) return;
+  const stockName = row.name;
+  const oldSector = row.sector;
+
+  // 1) SECTOR_DB 활성행의 sector만 단순 업데이트 (이력 분기 X)
+  row.sector = newSector;
+
+  // 2) STOCKS의 해당 종목 모든 행 sector 업데이트
+  let updatedCount = 0;
+  STOCKS.forEach(s => {
+    if (s.name === stockName && s.sector === oldSector) {
+      s.sector = newSector;
+      updatedCount++;
+    }
+  });
+
+  markDirty();
+  renderDB();
+  showToast(`✓ ${stockName}: 섹터 지정 → ${newSector} (${updatedCount}건 갱신)`, 'success');
+}
+
+// ── sector-db.json 다운로드 (백업 + 신규) ─────────────────
+function downloadSectorDbJson() {
+  // 어제 날짜 (YYYYMMDD)
+  const yest = new Date();
+  yest.setDate(yest.getDate() - 1);
+  const yyyymmdd = yest.toISOString().slice(0,10).replace(/-/g, '');
+
+  // 1) 원본 백업 다운로드 (어제 날짜)
+  const backup = {
+    version: SECTOR_DB_META.version || '1.0',
+    updated: SECTOR_DB_META.updated || '',
+    count: ORIGINAL_SECTOR_DB.length,
+    sectors: ORIGINAL_SECTOR_DB
+  };
+  const blob1 = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const a1 = document.createElement('a');
+  a1.href = URL.createObjectURL(blob1);
+  a1.download = `sector-db.json_${yyyymmdd}`;
+  a1.click();
+  URL.revokeObjectURL(a1.href);
+
+  // 2) 수정본 다운로드
+  const today = new Date().toISOString().slice(0,10);
+  const out = {
+    version: SECTOR_DB_META.version || '1.0',
+    updated: today,
+    count: SECTOR_DB.length,
+    sectors: SECTOR_DB
+  };
+  const blob2 = new Blob([JSON.stringify(out, null, 2)], {type:'application/json'});
+  const a2 = document.createElement('a');
+  a2.href = URL.createObjectURL(blob2);
+  a2.download = 'sector-db.json';
+  a2.click();
+  URL.revokeObjectURL(a2.href);
+
+  // IndexedDB 섹터 변경사항 비우기 (다운로드 완료했으므로)
+  clearSectorDBFromIndexedDB();
+  showToast(`📥 sector-db.json + 백업(${yyyymmdd}) 다운로드 완료`, 'success');
+}
+
+// ── 일일 데이터 입력 ───────────────────────────────────────
+let PARSED_INPUT = null;  // 분석 결과 보관
+
+function openDataInputModal() {
+  document.getElementById('inputDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('inputData').value = '';
+  document.getElementById('previewArea').innerHTML = '';
+  document.getElementById('confirmAddBtn').style.display = 'none';
+  PARSED_INPUT = null;
+  document.getElementById('dataInputModal').classList.add('show');
+}
+
+function closeDataInputModal() {
+  document.getElementById('dataInputModal').classList.remove('show');
+}
+
+function parseNumber(s) {
+  if (!s || s === '-') return 0;
+  return parseFloat(String(s).replace(/,/g,'').trim()) || 0;
+}
+
+function parseInputData() {
+  const dateISO = document.getElementById('inputDate').value;
+  const raw = document.getElementById('inputData').value;
+  const preview = document.getElementById('previewArea');
+  const confirmBtn = document.getElementById('confirmAddBtn');
+
+  if (!dateISO) {
+    preview.innerHTML = `<div class="preview-error">⚠️ 날짜를 선택해주세요.</div>`;
+    confirmBtn.style.display = 'none';
+    return;
+  }
+  if (!raw.trim()) {
+    preview.innerHTML = `<div class="preview-error">⚠️ 데이터를 붙여넣어주세요.</div>`;
+    confirmBtn.style.display = 'none';
+    return;
+  }
+
+  // ISO → "YYYY.MM.DD.(요일)" 변환
+  const days = ['일','월','화','수','목','금','토'];
+  const d = new Date(dateISO);
+  const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}.(${days[d.getDay()]})`;
+  const sectorDateStr = `${dateISO}(${days[d.getDay()]})`;
+
+  // 줄별 파싱
+  const lines = raw.split(/\r?\n/).filter(l => l.trim());
+  const stocks = [];
+  const errors = [];
+
+  lines.forEach((line, i) => {
+    // prefix 제거: 줄 시작의 *, #, 공백 제거
+    let cleaned = line.replace(/^[\s*#]+/, '');
+    const fields = cleaned.split(/\t/);
+    if (fields.length < 10) {
+      errors.push(`${i+1}행: 필드 수 부족 (${fields.length}/10) - ${line.slice(0,30)}`);
+      return;
+    }
+    const name = fields[0].trim();
+    const price = parseNumber(fields[1]);
+    const sign = fields[2].trim();
+    const chg = parseNumber(fields[3]);
+    const rate = parseNumber(fields[4]);
+    const amt = parseNumber(fields[5]);
+    const inst = parseNumber(fields[6]);
+    const forg = parseNumber(fields[7]);
+    const prog = parseNumber(fields[8]);
+    const mktcap = parseNumber(fields[9]);
+    if (!name) {
+      errors.push(`${i+1}행: 종목명 없음`);
+      return;
+    }
+    stocks.push({ name, price, sign, chg, rate, amt, inst, forg, prog, mktcap });
+  });
+
+  // 섹터 매칭 (활성행 기준)
+  const activeMap = {};
+  SECTOR_DB.forEach(r => {
+    if (r.end === '9999-12-31') activeMap[r.name] = r.sector;
+  });
+
+  const newStocks = [];
+  stocks.forEach(s => {
+    if (activeMap[s.name] !== undefined) {
+      s.sector = activeMap[s.name];
+    } else {
+      s.sector = '-';
+      newStocks.push(s.name);
+    }
+    s.date = dateStr;
+  });
+
+  // 같은 날짜 데이터 이미 존재하는지
+  const existsForDate = STOCKS.some(r => r.date === dateStr);
+
+  // 보관
+  PARSED_INPUT = { dateStr, sectorDateStr, stocks, newStocks, existsForDate };
+
+  // 미리보기 렌더링
+  let html = `<div class="preview-box">`;
+  html += `<div class="preview-stats">
+    <span>날짜:<strong>${dateStr}</strong></span>
+    <span>총 종목:<strong>${stocks.length}</strong></span>
+    <span>기존:<strong>${stocks.length - newStocks.length}</strong></span>
+    <span style="color:#d97706">신규:<strong style="color:#d97706">${newStocks.length}</strong></span>
+  </div>`;
+  if (newStocks.length > 0) {
+    html += `<div class="preview-list">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">신규 종목 (섹터="-"로 등록 → 섹터DB 탭에서 수정)</div>
+      ${newStocks.map(n => `<div class="new-stock">• ${n}</div>`).join('')}
+    </div>`;
+  }
+  if (existsForDate) {
+    html += `<div class="preview-warning">⚠️ ${dateStr} 날짜에 기존 데이터가 이미 있습니다. "추가" 시 기존 행을 모두 삭제 후 새로 추가합니다.</div>`;
+  }
+  if (errors.length > 0) {
+    html += `<div class="preview-error">파싱 오류 ${errors.length}건:<br>${errors.slice(0,5).join('<br>')}</div>`;
+  }
+  html += `</div>`;
+
+  preview.innerHTML = html;
+  confirmBtn.style.display = stocks.length > 0 ? '' : 'none';
+}
+
+function applyInputData() {
+  if (!PARSED_INPUT) return;
+  const { dateStr, sectorDateStr, stocks, newStocks, existsForDate } = PARSED_INPUT;
+
+  // 1) 같은 날짜 기존 행 제거
+  if (existsForDate) {
+    STOCKS = STOCKS.filter(r => r.date !== dateStr);
+  }
+
+  // 2) 신규 종목을 SECTOR_DB에 추가
+  newStocks.forEach(name => {
+    SECTOR_DB.push({
+      name,
+      sector: '-',
+      start: sectorDateStr,
+      end: '9999-12-31'
+    });
+  });
+  // 정렬: 한글→영문, 종목명 가나다순
+  if (newStocks.length > 0) {
+    SECTOR_DB.sort((a,b) => {
+      if (a.name === b.name) return a.start.localeCompare(b.start);
+      return a.name.localeCompare(b.name, 'ko-KR');
+    });
+  }
+
+  // 3) STOCKS에 추가 (앞에 prepend)
+  STOCKS = stocks.concat(STOCKS);
+
+  // 4) ALL_DATES 갱신
+  ALL_DATES = [...new Set(STOCKS.map(r => r.date))].sort();
+
+  // 5) DATA_META.updated 갱신
+  DATA_META.updated = new Date().toISOString().slice(0,10);
+
+  // 6) dirty 표시 + 재렌더링
+  markDirty();
+  renderAll();
+  renderDB();
+
+  // 7) 날짜 버튼 갱신
+  const recentDates = ALL_DATES.slice(-7).reverse();
+  document.getElementById('dateBtns').innerHTML = recentDates.map(dt =>
+    `<button class="date-btn" onclick="filterDate('${dt}')">${dt}</button>`
+  ).join('');
+  document.getElementById('totalStocks').textContent = `총 ${STOCKS.length}개 레코드 · ${ALL_DATES.length}일`;
+  document.getElementById('dateRange').textContent = `${ALL_DATES[0]} ~ ${ALL_DATES[ALL_DATES.length-1]}`;
+  document.getElementById('updatedAt').textContent = `업데이트: ${DATA_META.updated}`;
+
+  closeDataInputModal();
+  const msg = newStocks.length > 0
+    ? `✓ ${stocks.length}개 추가 (신규 ${newStocks.length}개는 섹터DB에서 수정 필요)`
+    : `✓ ${stocks.length}개 추가`;
+  showToast(msg, 'success');
+}
+
+// ═══════════════════════════════════════════════════════════
+// 📊 종목 분석 탭 — analysis.json 기반 (알약 버튼 UI)
+// ═══════════════════════════════════════════════════════════
+let ANALYSIS_CURRENT_SECTOR = null;
+let ANALYSIS_CURRENT_STOCK  = null;
+
+function initAnalysisTab() {
+  const sectorPills = document.getElementById('analysis-sector-pills');
+  const stockPills  = document.getElementById('analysis-stock-pills');
+  const countEl     = document.getElementById('analysis-count');
+
+  // 종목 0개일 때
+  if (!ANALYSIS_DATA || ANALYSIS_DATA.length === 0) {
+    countEl.textContent = '(등록된 종목 없음)';
+    sectorPills.innerHTML = '';
+    stockPills.innerHTML  = '';
+    document.getElementById('analysis-empty-state').innerHTML =
+      '<div class="icon">📭</div><div>등록된 종목 분석이 없습니다<br><small style="color:#94a3b8;font-size:12px">analysis.json 파일을 확인해주세요</small></div>';
+    return;
+  }
+
+  // 섹터 목록 (가나다순)
+  const sectors = [...new Set(ANALYSIS_DATA.map(s => s.sector))].sort((a,b)=>a.localeCompare(b,'ko-KR'));
+
+  // 섹터 알약 버튼 생성 (SECTOR_STYLE 배지 색상 적용)
+  sectorPills.innerHTML = sectors.map(s => {
+    const st = SECTOR_STYLE[s] || SECTOR_STYLE['-'];
+    const safeName = s.replace(/"/g,'&quot;');
+    return `<button class="pill sector" data-sector="${safeName}"
+      data-bg="${st.bg}" data-fg="${st.fg}"
+      style="background:${st.bg};color:${st.fg};border-color:${st.bg}"
+      onclick="selectAnalysisSector(this.dataset.sector)">${s}</button>`;
+  }).join('');
+
+  countEl.textContent = `총 ${ANALYSIS_DATA.length}개 종목`;
+
+  // 첫 섹터 자동 선택
+  if (sectors.length > 0) {
+    selectAnalysisSector(sectors[0]);
+  }
+}
+
+function selectAnalysisSector(sector) {
+  ANALYSIS_CURRENT_SECTOR = sector;
+
+  // 섹터 알약 활성화 표시 (active 시 진하고 굵은 외곽선)
+  document.querySelectorAll('#analysis-sector-pills .pill').forEach(btn => {
+    const isActive = btn.dataset.sector === sector;
+    btn.classList.toggle('active', isActive);
+    if (isActive) {
+      btn.style.borderColor = btn.dataset.fg;  // active: 글자색을 테두리로 → 강조
+      btn.style.boxShadow = `0 0 0 2px ${btn.dataset.fg}33`;  // 글로우 효과
+    } else {
+      btn.style.borderColor = btn.dataset.bg;
+      btn.style.boxShadow = 'none';
+    }
+  });
+
+  // 해당 섹터 종목 알약 생성
+  const stocks = ANALYSIS_DATA.filter(s => s.sector === sector);
+  const stockPills = document.getElementById('analysis-stock-pills');
+  stockPills.innerHTML = stocks.map(s =>
+    `<button class="pill stock" data-id="${s.id}" onclick="selectAnalysisStock('${s.id}')">${s.name}<span class="code">${s.code}</span></button>`
+  ).join('');
+
+  // 첫 종목 자동 선택
+  if (stocks.length > 0) {
+    selectAnalysisStock(stocks[0].id);
+  } else {
+    hideAllAnalysis();
+    document.getElementById('analysis-empty-state').style.display = '';
+  }
+}
+
+function selectAnalysisStock(id) {
+  ANALYSIS_CURRENT_STOCK = id;
+
+  // 종목 알약 활성화 표시
+  document.querySelectorAll('#analysis-stock-pills .pill').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.id === id);
+  });
+
+  showAnalysisStock(id);
+}
+
+function hideAllAnalysis() {
+  document.querySelectorAll('.analysis-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('analysis-empty-state').style.display = 'none';
+}
+
+function showAnalysisStock(id) {
+  hideAllAnalysis();
+  let el = document.getElementById('analysis-tab-' + id);
+  if (!el) {
+    const stock = ANALYSIS_DATA.find(s => s.id === id);
+    if (!stock) return;
+    el = document.createElement('div');
+    el.id = 'analysis-tab-' + id;
+    el.className = 'analysis-content';
+    el.innerHTML = stock.html;
+    document.getElementById('analysis-body').appendChild(el);
+  }
+  el.classList.add('active');
 }
 </script>
 </body>
